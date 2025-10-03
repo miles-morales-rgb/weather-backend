@@ -2,26 +2,33 @@ const express = require("express");
 const axios = require("axios");
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // ✅ Use Render's PORT or fallback to 3000
 
 app.use(express.static("public"));
 
-// Route: Weather by city
-app.get("/weather", async (req, res) => {
-  const { city } = req.query;
+// ✅ Root route
+app.get("/", (req, res) => {
+  res.send("🌤️ Weather API is running! Use /weather?city=Delhi");
+});
 
-  if (!city) {
+// ✅ Weather by city
+app.get("/weather", async (req, res) => {
+  // Accept both ?city= and ?q= for flexibility
+  const { city, q } = req.query;
+  const cityName = city || q;
+
+  if (!cityName) {
     return res.status(400).json({ error: "City name required" });
   }
 
   try {
     // Step 1: Geocode city → lat, lon
-    const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+    const geoRes = await axios.get("https://nominatim.openstreetmap.org/search", {
       params: {
-        q: city,
+        q: cityName,
         format: "json",
-        limit: 1
-      }
+        limit: 1,
+      },
     });
 
     if (!geoRes.data.length) {
@@ -37,11 +44,10 @@ app.get("/weather", async (req, res) => {
 
     res.json({
       city: display_name,
-      ...weatherRes.data.current_weather
+      ...weatherRes.data.current_weather,
     });
-
   } catch (error) {
-    console.error(error.message);
+    console.error("❌ API Error:", error.message);
     res.status(500).json({ error: "API error" });
   }
 });
